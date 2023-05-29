@@ -1,0 +1,33 @@
+---
+title: "Modelling the effect of interventions on COVID-19 in Victoria"
+subtitle: ETC5512 Assignment 4, Master of Business Analytics
+author: Prepared by Givenname Familyname, student id, email address 
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    css: monashreport.css
+    includes:
+      before_body: header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  messages = FALSE,
+  warning = FALSE
+)
+library(tidyverse)
+```
+
+# Data sources
+
+# 🔍 Analysis
+
+# 📉 Data curation
+
+
+# Resources
+
+Cite your data sources, and software used here. 
+
+
