@@ -90,8 +90,10 @@ cleaned_data %>%
 ```{r GR, fig.cap= "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020"}
 lockdown_period <- interval(ymd("20200630"), ymd("20200729"))
 
-growth_rate <- cleaned_data %>%
+growth_rate <- data %>%
  filter(diagnosis_date %within% lockdown_period) %>% #limit it to the lock down period
+  group_by(diagnosis_date)%>%
+  summarise(total_cases=n())%>%
   mutate(
  growth_rate=slider::slide_dbl(
  .x = total_cases,
