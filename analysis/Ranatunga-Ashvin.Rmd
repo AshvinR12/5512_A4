@@ -3,7 +3,9 @@ title: "Modelling the effect of interventions on COVID-19 in Victoria"
 subtitle: ETC5512 Assignment 4, Master of Business Analytics
 author: Prepared by Givenname Familyname, student id, email address 
 date: '`r Sys.Date()`'
-bibliography: references.bib
+bibliography: [packages.bib,references.bib]
+nocite: |
+  @R-tidyverse,@R-bookdown,@R-lubridate,@R-ggplot2
 output: 
   html_document:
     css: monashreport.css
@@ -14,14 +16,15 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = FALSE,
-  messages = FALSE,
+  message = FALSE,
   warning = FALSE
 )
 library(tidyverse)
 library(ggplot2)
-library(dplyr)
 library(lubridate)
 library(bookdown)
+
+
 ```
 
 # Data sources
@@ -37,17 +40,25 @@ data <- case_data %>% filter(diagnosis_date >= "2020-06-01",
                              diagnosis_date <= "2020-08-13") 
 ```
 
-1. The data was sourced from the Victoria Health Coronavirus website, which stores the data of all the coronavirus cases throughout Victoria since 2020. They have data sets available for outsiders to download and analyze, as well as post updated information frequently.
+#### 1. Where the Data was found
+
+The data was sourced from the Victoria Health Coronavirus website, which stores the data of all the coronavirus cases throughout Victoria since 2020. They have data sets available for outsiders to download and analyze, as well as post updated information frequently.
 
 Of the data sets available for download the data chosen for this analysis was Victorian case data that contains 'all data of PCR and RAT cases by Local Government Area and postcode'. This is primarily because this data set contains more variables thereby giving more flexibility and control for the analysis and results. It will help bolster the objective of this analysis and help improve understanding of the results provided.
 
 This data is protected by copyright under a Creative Commons Attribution Version 4.0, which is an international license. Therefore, when using this data we must be mindful of the restrictions laid out in the aforementioned license.
 
-2. This is a observational data as the Victoria Health department specified that they gathered their data through contact tracing and management of the COVID-19 outbreak. This is indicative that researcher or health professionals do not control the factors affecting the variables, meaning that the variables themselves are independent, but rather they attempt to determine correlation of factors. In this scenario the independent variables are the coronavirus cases or people affected by the coronavirus.
+#### 2. Observational or Experimental Data
 
-4. In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
+This is a observational data as the Victoria Health department specified that they gathered their data through contact tracing and management of the COVID-19 outbreak. This is indicative that researcher or health professionals do not control the factors affecting the variables, meaning that the variables themselves are independent, but rather they attempt to determine correlation of factors. In this scenario the independent variables are the coronavirus cases or people affected by the coronavirus.
 
-5. The data set in its current form can be stored and used for analysis of the research question, however the only variables essential to this analysis is the date of diagnosis and the number of cases on those days. Therefore, to keep the report concise and accurate we will remove all columns except "diagnosis_date" as well as create a new column "total_cases" to give the total number of cases on a given day within the period of interest.
+#### 4. Unit and potential Unique Identifier
+
+In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
+
+#### 5. Storing and Analysing the Data
+
+The data set in its current form can be stored and used for analysis of the research question, however the only variables essential to this analysis is the date of diagnosis and the number of cases on those days. Therefore, to keep the report concise and accurate we will remove all columns except "diagnosis_date" as well as create a new column "total_cases" to give the total number of cases on a given day within the period of interest.
 
 ```{r}
 cleaned_data <- data %>% 
@@ -58,10 +69,10 @@ cleaned_data <- data %>%
 
 # 🔍 Analysis
 
-6. 
+#### 6. Daily Cases over Time of Interest
 
 
-```{r}
+```{r, fig.cap= "Time series of Covid cases from 30th June to the 13th of September 2020"}
 cleaned_data %>%
   ggplot(aes(x= diagnosis_date, y= total_cases))+
   geom_line()+
@@ -70,22 +81,13 @@ cleaned_data %>%
 ```
 
 
-```{r}
-#areas affected by lockdowns from 30th June to 29th July
-#found in the guardian article
-ld <- cleaned_data%>% filter(postcode %in% c(3012,3021,
-                                            3032,3038,
-                                            3041,3046,
-                                            3047,3055,
-                                            3060,3064))
 
 
-```
 
 
-7. 
+#### 7. 7-Day Growth Rate
 
-```{r growth-rate, fig.cap= "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020"}
+```{r GR, fig.cap= "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020"}
 lockdown_period <- interval(ymd("20200630"), ymd("20200729"))
 
 growth_rate <- cleaned_data %>%
@@ -105,10 +107,28 @@ ggplot(growth_rate,aes(diagnosis_date, growth_rate))+
   geom_line()
 
 ```
-Since we are concerned with effects of local lockdowns, the above growth rate considers the lockdown duration within the investigation period. The lockdown at that point in time was imposed from the 30th of June to the 29th of July 2020. What we notice from Figure \@ref(fig:growth-rate) is that although there was an initial spike in the growth rate of cases, it subsided towards the end of the lockdown. This means the lockdown was relatively effective in this period.
+
+
+Since we are concerned with effects of local lockdowns, the above growth rate considers the lockdown duration within the investigation period. According to @guardian, the lockdown at that point in time was imposed from the 30th of June to the 29th of July 2020. What we notice from Figure \@ref{fig:GR} is that although there was an initial spike in the growth rate of cases, it subsided towards the end of the lockdown. This means the lockdown was relatively effective in this period.
+
+#### 9. Estimating R(0) and Change in R(0) due to intervention
+
+```{r}
+solve_times <- seq(int_start(lockdown_period), 
+                   int_end(lockdown_period), by = "1 day")
+parameters <- c(
+ "beta" = 2 / 3,
+ "sigma" = 1 / 5,
+ "gamma" = 1 / 6 # Gives an R0 (beta/gamma) of 4
+)
+N <- 6.681e6 #population in Victoria as at September 2020
+
+```
+
+
 
 # Trial :
-```{r}
+```{r, echo=FALSE,include=FALSE}
 
 day <- seq(0, 3, by=0.01)
 prob_test_returned <- dlnorm(x=day, meanlog=0, sdlog=0.2)
@@ -121,6 +141,8 @@ ggplot(df, aes(x=day, y=prob_test_returned)) + geom_line() + theme_bw() +
 
 # 📉 Data curation
 
+The criteria I am following in this section is the one laid out by @sheet.
+
 1. The first thing is to be consistent with the organization of your data.
 In this Covid-19 data set the variables consistently used were "diagnosed_date" and "Total_cases".
 
@@ -128,8 +150,21 @@ In this Covid-19 data set the variables consistently used were "diagnosed_date" 
 
 3. When writing dates it is 
 
+
+
+
+```{r}
+#areas affected by lockdowns from 30th June to 29th July
+#found in the guardian article
+#ld <- data%>% filter(postcode %in% c(3012,3021,
+                                            #3032,3038,
+                                            #3041,3046,
+                                            #3047,3055,
+                                            #3060,3064))%>%
+  #filter(diagnosis_date >= "2020-06-01",diagnosis_date <= "2020-08-13")
+
+
+
+```
+
 # Resources
-
-Cite your data sources, and software used here. 
-
-
