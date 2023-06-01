@@ -3,6 +3,7 @@ title: "Modelling the effect of interventions on COVID-19 in Victoria"
 subtitle: ETC5512 Assignment 4, Master of Business Analytics
 author: Prepared by Givenname Familyname, student id, email address 
 date: '`r Sys.Date()`'
+bibliography: references.bib
 output: 
   html_document:
     css: monashreport.css
@@ -17,6 +18,10 @@ knitr::opts_chunk$set(
   warning = FALSE
 )
 library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(bookdown)
 ```
 
 # Data sources
@@ -42,17 +47,86 @@ This data is protected by copyright under a Creative Commons Attribution Version
 
 4. In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
 
-5. The data set in its current form can be stored and used for analysis of the research question, however there are a few variables that are not essential to the analysis. Therefore, to keep the report concise and accurate we will remove the columns PCR_case_count and RAT_case_count.
+5. The data set in its current form can be stored and used for analysis of the research question, however the only variables essential to this analysis is the date of diagnosis and the number of cases on those days. Therefore, to keep the report concise and accurate we will remove all columns except "diagnosis_date" as well as create a new column "total_cases" to give the total number of cases on a given day within the period of interest.
 
 ```{r}
-cleaned_data <- data %>% select(-PCR_case_count,-RAT_case_count)
+cleaned_data <- data %>% 
+  group_by(diagnosis_date)%>%
+  summarise(total_cases=n())
 ```
 
 
 # 🔍 Analysis
 
+6. 
+
+
+```{r}
+cleaned_data %>%
+  ggplot(aes(x= diagnosis_date, y= total_cases))+
+  geom_line()+
+  labs(x= "Diagnosis date", y = "Number of cases")
+
+```
+
+
+```{r}
+#areas affected by lockdowns from 30th June to 29th July
+#found in the guardian article
+ld <- cleaned_data%>% filter(postcode %in% c(3012,3021,
+                                            3032,3038,
+                                            3041,3046,
+                                            3047,3055,
+                                            3060,3064))
+
+
+```
+
+
+7. 
+
+```{r growth-rate, fig.cap= "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020"}
+lockdown_period <- interval(ymd("20200630"), ymd("20200729"))
+
+growth_rate <- cleaned_data %>%
+ filter(diagnosis_date %within% lockdown_period) %>% #limit it to the lock down period
+  mutate(
+ growth_rate=slider::slide_dbl(
+ .x = total_cases,
+ .f = function(v) {
+ log(v[7]/v[1]) / 7 #Seven-day growth rate
+ },
+ .before=8, #consider only the previous values
+ .after = 0
+ )
+ )
+
+ggplot(growth_rate,aes(diagnosis_date, growth_rate))+
+  geom_line()
+
+```
+Since we are concerned with effects of local lockdowns, the above growth rate considers the lockdown duration within the investigation period. The lockdown at that point in time was imposed from the 30th of June to the 29th of July 2020. What we notice from Figure \@ref(fig:growth-rate) is that although there was an initial spike in the growth rate of cases, it subsided towards the end of the lockdown. This means the lockdown was relatively effective in this period.
+
+# Trial :
+```{r}
+
+day <- seq(0, 3, by=0.01)
+prob_test_returned <- dlnorm(x=day, meanlog=0, sdlog=0.2)
+df <- data.frame(day, prob_test_returned)
+ggplot(df, aes(x=day, y=prob_test_returned)) + geom_line() + theme_bw() +
+ labs(x="Time from test until notification", y="Density")
+
+```
+
+
 # 📉 Data curation
 
+1. The first thing is to be consistent with the organization of your data.
+In this Covid-19 data set the variables consistently used were "diagnosed_date" and "Total_cases".
+
+2. It is important to choose good and meaningful names for variable and file names. In this data set "diagnosed_data" represents the date a patient was diagnosed to be positive with Covid-19, while "Total_cases" represents the total number of cases diagnosed on each date.
+
+3. When writing dates it is 
 
 # Resources
 
