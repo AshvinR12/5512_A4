@@ -30,13 +30,17 @@ library(deSolve)
 
 # Data sources
 
-```{r}
+```{r, eval=FALSE}
 #load case data from the csv
+#use eval false as this file will not be included in submission
+
 covid_case_data <- read_csv(here::here("data/NCOV_cases_by_postcode_LGA.csv"))
 ```
 
-```{r}
+```{r, eval=FALSE}
 #filter the data for the investigation period
+#use eval false as this will not run without original data
+
 data <- covid_case_data %>% filter(diagnosis_date >= "2020-06-01",
                              diagnosis_date <= "2020-08-13") 
 ```
@@ -53,7 +57,9 @@ This data is protected by copyright under a Creative Commons Attribution Version
 
 This is a observational data as the Victoria Health department specified that they gathered their data through contact tracing and management of the COVID-19 outbreak. This is indicative that researcher or health professionals do not control the factors affecting the variables, meaning that the variables themselves are independent, but rather they attempt to determine correlation of factors. In this scenario the independent variables are the coronavirus cases or people affected by the coronavirus.
 
-**3. Codebook** - This can be found in the data folder. 
+**3. Codebook** 
+
+The codebook for the release data can be found in the data folder. 
 
 **4. Unit and potential Unique Identifier**
 
@@ -63,10 +69,22 @@ The unit of this data is considered to be the number of covid cases. In this dat
 
 The data set in its current form can be stored and used for analysis of the research question, however the only variables essential to this analysis is the date of diagnosis and the number of cases on those days. Therefore, to keep the report concise and accurate we will remove all columns except "diagnosis_date" as well as create a new column "total_cases" to give the total number of cases on a given day within the period of interest.
 
-```{r}
+```{r, eval=FALSE}
 cleaned_data <- data %>% 
   group_by(diagnosis_date)%>%
   summarise(total_cases=n())
+
+#store it in a csv file
+#use eval false so the file does not get overwritten when knitting
+write.csv(cleaned_data,
+          here::here("data","release-data-Ranatunga-Ashvin.csv"),
+          row.names=FALSE)
+```
+
+```{r}
+#read the data back into the variable of choice
+
+cleaned_data<- read_csv(here::here("data/release-data-Ranatunga-Ashvin.csv"))
 ```
 
 
@@ -109,10 +127,9 @@ From this figure we see that the overall trend for the number of cases diagnosed
 ```{r generate growth rate}
 lockdown_period <- interval(ymd("20200624"), ymd("20200729"))
 
-growth_rate <- data %>%
+growth_rate <- cleaned_data %>%
  filter(diagnosis_date %within% lockdown_period) %>% #limit it to the lock down period
-  group_by(diagnosis_date)%>%
-  summarise(total_cases=n())%>%
+
   mutate(
  growth_rate=slider::slide_dbl(
  .x = total_cases,
@@ -260,14 +277,43 @@ d.
 
 ```{r}
 initial_assumption <- ode(
+  
  y = initial_state,
  times = as.numeric(difftime(times, times[1], units = "days")),
  func = covid_cases_intervention_dates,
  parms = parameters
-)
 
-view(initial_assumption)
+ )
+
+#display the output
+initial_assumption
 ```
+
+
+```{r}
+#neaten the data output
+
+tidy_function <- function(ode_output, start_date) {
+ as_tibble(ode_output) |>
+ mutate(
+ 
+ date = as.Date(start_date + days(time)), #include date in the final output
+ daily_incidence = c(0, diff(incidence))
+ 
+ )
+}
+
+initial_assumption_tidy_output <- 
+  tidy_function(initial_assumption, int_start(lockdown_period))
+
+#displaying the output of the data after tidying
+initial_assumption_tidy_output
+
+
+#displaying the output of the 2 dates of intervention after tidying
+initial_assumption_tidy_output[c(7,30),]
+```
+
 
 
 # 📉 Data curation
