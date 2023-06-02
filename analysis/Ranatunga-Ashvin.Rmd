@@ -16,7 +16,7 @@ fig_caption: true
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  echo = TRUE,
   message = FALSE,
   warning = FALSE
 )
@@ -45,7 +45,7 @@ data <- covid_case_data %>% filter(diagnosis_date >= "2020-06-01",
 
 The data was sourced from the Victoria Health Coronavirus website, which stores the data of all the coronavirus cases throughout Victoria since 2020. They have data sets available for outsiders to download and analyze, as well as post updated information frequently.
 
-Of the data sets available for download the data chosen for this analysis was Victorian case data that contains 'all data of PCR and RAT cases by Local Government Area and postcode'. This is primarily because this data set contains more variables thereby giving more flexibility and control for the analysis and results. It will help bolster the objective of this analysis and help improve understanding of the results provided.
+Of the data sets available for download the data chosen for this analysis was Victorian case data that contains [*"All data of PCR and RAT cases by Local Government Area and postcode"*](https://www.coronavirus.vic.gov.au/victorian-coronavirus-covid-19-data). This is primarily because this data set contains more variables thereby giving more flexibility and control for the analysis and results. It will help bolster the objective of this analysis and help improve understanding of the results provided.
 
 This data is protected by copyright under a Creative Commons Attribution Version 4.0, which is an international license. Therefore, when using this data we must be mindful of the restrictions laid out in the aforementioned license.
 
@@ -55,7 +55,7 @@ This is a observational data as the Victoria Health department specified that th
 
 **4. Unit and potential Unique Identifier**
 
-In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
+The unit of this data is considered to be the number of covid cases. In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
 
 **5. Storing and Analysing the Data**
 
@@ -148,6 +148,24 @@ We can understand that despite there being an initial spike in the growth rate o
 
 **8. Relationship between Growth Rate and Effective Transmission Rate**
 
+a. 
+
+First let us identify what these two terms mean:
+
+The growth rate, in the context of the corona virus in this case, refers to rate at which the number of covid positive cases increase or decrease. While the effective transmission number refers to the average number of people that can be infected by a single individual.
+
+Growth Rate = g
+
+Effective Transmission Number = R(0)
+
+Average duration of infectiousness = T
+
+It follows this equation:
+
+g = R(0) - 1/ T
+
+
+
 **9. Estimating R(0) and Change in R(0) due to intervention**
 
 a.
@@ -178,8 +196,8 @@ times <- seq(int_start(lockdown_period),
 parameters <- c(
  "beta" = 2 / 3,
  "sigma" = 1 / 5,
- "gamma" = 1 / 3 # Gives an R0 (beta/gamma) of 2
-)
+ "gamma" = 1 / 6 # Gives an R0 (beta/gamma) of 4
+) 
 population_vic <- 6.681e6 #population in Victoria as at September 2020
 
 initial_infected <- 10
@@ -191,9 +209,12 @@ initial_state <- c("S" = population_vic - initial_infected,
 
 ```
 
+According to an article in @healthdirect, a person from about 48 hours before symptoms or around 72 hours before symptoms in high risk situations. Additionally, people can be infectious up to 10 days while already having covid. Therefore, finding the average between the two extremes which is 3 days prior and 10 days, I assumed gamma to be 6 as a rounded figure. 
+
 ```{r}
-COVID_cases_intdate <- function(t, state, parameters) {
- with(as.list(c(state, parameters)), { # Let's us refer to named objects without square bracket
+covid_cases_intervention_dates <- function(t, state, parameters) {
+ with(as.list(c(state, parameters)), { 
+   
  population_vic <- S + E + I + R 
  dSdt <- -beta * S * I / population_vic
  dEdt <- beta * S * I / population_vic - sigma * E
@@ -201,15 +222,25 @@ COVID_cases_intdate <- function(t, state, parameters) {
  dRdt <- gamma * I
  dIncidencedt <- sigma * E
  return(list(
- c(dSdt, dEdt, dIdt, dRdt, dIncidencedt) # The order is critical! It has to be the same ord
+ c(dSdt, dEdt, dIdt, dRdt, dIncidencedt) 
  ))
  })
 }
 
 ```
 
+
+d.
+
 ```{r}
-citation("deSolve")
+initial_assumption <- ode(
+ y = initial_state,
+ times = as.numeric(difftime(times, times[1], units = "days")),
+ func = covid_cases_intervention_dates,
+ parms = parameters
+)
+
+view(initial_assumption)
 ```
 
 
@@ -218,11 +249,26 @@ citation("deSolve")
 The criteria I am following in this section is the one laid out by @sheet.
 
 1. The first thing is to be consistent with the organization of your data.
-In this Covid-19 data set the variables consistently used were "diagnosed_date" and "Total_cases".
+In this Covid-19 data set the variables consistently used were "diagnosed_date" and "total_cases".
 
-2. It is important to choose good and meaningful names for variable and file names. In this data set "diagnosed_data" represents the date a patient was diagnosed to be positive with Covid-19, while "Total_cases" represents the total number of cases diagnosed on each date.
+2. It is important to choose good and meaningful names for variable and file names. In this data set "diagnosed_data" represents the date a patient was diagnosed to be positive with Covid-19, while "total_cases" represents the total number of cases diagnosed on each date.
 
-3. When writing dates it is 
+3. When writing dates it is best to do so in the universal format YYYY-MM-DD, which has been followed in this analysis as seen in the "diagnosis_date" variable.
 
+4. In terms of putting a single item in a cell, it has been followed in this analysis where each variable has its own respective cell containing information only pertaining to that specific variable. Putting a single item in a cell is generally meant to avoid errors when having to separate items in a cell, which is not seen in this codebook.
+
+5. None of the cells have been left empty. If an something did not relate to a certain variable, the cell was filled with 'NA'. For example, "diagnosis_date" does not in itself have a unit and therefore this cell was filled with NA in the codebook.
+
+6. Calculations have not been included in the data file, rather the data has been kept in its raw ".csv" format. Another way to identify that this concept was followed is from the object "covid_case_data". This object has been transformed and stored in other objects but the original "covid_case_data" object has not been altered but left in its raw state.
+
+7. A data dictionary has been created. It contains the variable names of the filtered data that was used for the analysis. It can be found as a separate file "Codebook".
+
+8. This analysis was backed up onto git hub to protect this folder should anything happen. Attached is the link to the git hub repository [backup](https://github.com/AshvinR12/5512_A4.git).
+
+9. The data has been saved in a plain ".csv" format so as to be easily readable by any machine or program. This makes easier to read the data into R for this analysis.
+
+10. The data was highlighted nor was the font color changed. It has been kept in its raw format for this analysis.
+
+11. One validation method was to ensure that there are no negative values for number of cases. This is due to the fact that number of cases considers people and therefore cannot be negative.
 
 # Resources
