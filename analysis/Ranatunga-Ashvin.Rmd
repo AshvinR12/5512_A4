@@ -5,7 +5,7 @@ author: Prepared by Givenname Familyname, student id, email address
 date: '`r Sys.Date()`'
 bibliography: [packages.bib,references.bib]
 nocite: |
-  @R-tidyverse,@R-bookdown,@R-lubridate,@R-ggplot2, @R-deSolve
+  @R-tidyverse,@R-bookdown,@R-lubridate,@R-ggplot2, @R-deSolve, @vichealth
 output: 
   bookdown::html_document2:
             css: monashreport.css
@@ -53,6 +53,8 @@ This data is protected by copyright under a Creative Commons Attribution Version
 
 This is a observational data as the Victoria Health department specified that they gathered their data through contact tracing and management of the COVID-19 outbreak. This is indicative that researcher or health professionals do not control the factors affecting the variables, meaning that the variables themselves are independent, but rather they attempt to determine correlation of factors. In this scenario the independent variables are the coronavirus cases or people affected by the coronavirus.
 
+**3. Codebook** - This can be found in the data folder. 
+
 **4. Unit and potential Unique Identifier**
 
 The unit of this data is considered to be the number of covid cases. In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
@@ -78,7 +80,7 @@ cleaned_data <- data %>%
 intervention_dates<- c("2020-06-30", "2020-07-23") #store intervention dates in a variable
 
 #do the following to highlight the intervention dates in plot
-cleaned_data$cases_by_date<- 
+cleaned_data$type_of_date<- 
   ifelse(cleaned_data$diagnosis_date == intervention_dates,
          "date_of_intervention","other") 
 
@@ -90,7 +92,7 @@ cleaned_data %>%
   geom_line()+
   
   #add code to highlight specific dates
-  geom_point(aes(colour = cases_by_date))+
+  geom_point(aes(colour = type_of_date))+
   
   labs(x= "Diagnosis date", y = "Number of cases")
 
@@ -126,8 +128,10 @@ growth_rate <- data %>%
 
 
 ```{r growth, fig.cap = "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020", fig.align='center'}
+
 #do the same as in previous figure to highlight the intervention dates
-growth_rate$cases_by_date <- 
+
+growth_rate$type_of_date <- 
   ifelse(growth_rate$diagnosis_date == intervention_dates,
          "date_of_intervention","other") 
 
@@ -135,7 +139,7 @@ mycolour<- c("date_of_intervention" = "red", "other" = "grey")
 
 ggplot(growth_rate,aes(diagnosis_date, growth_rate))+
   geom_line()+
-  geom_point(aes(colour = cases_by_date))
+  geom_point(aes(colour = type_of_date))
 
 ```
 
@@ -152,7 +156,7 @@ a.
 
 First let us identify what these two terms mean:
 
-The growth rate, in the context of the corona virus in this case, refers to rate at which the number of covid positive cases increase or decrease. While the effective transmission number refers to the average number of people that can be infected by a single individual.
+The growth rate, in the context of the corona virus in this case, refers to rate at which the number of covid positive cases increase or decrease. While the effective transmission number refers to the average number of people that can be infected by a single person or the number of new infections an individual can cause.
 
 Growth Rate = g
 
@@ -164,6 +168,28 @@ It follows this equation:
 
 g = R(0) - 1/ T
 
+The reason the equation above subtracts one is to take out the individual or person infecting others out of the equation. The average duration of infectiousness(T), refers to amount of time a person can transmit or pass covid upon contracting it. 
+
+Now lets understand the relationship between growth rate and R(0):
+
+R(0)>1 refers to an individual that is passing on covid to another, meaning that the growth rate will be positive as "anything greater than 1 - 1 = positive value" and time can never be negative. As such, growth rate will increase no matter the magnitude.
+
+On the other hand, the converse is also true. When R(0)<1, it means that an individual is less likely to pass on covid to another meaning that growth rate will be negative. This is because again "anything between 0 and 1 - 1 = negative value", and time(T) can never be negative. Therefore, growth rate will decrease regardless of magnitude and will eventually end at 0.
+
+
+b.
+
+In class the formula presented was:
+
+Effective transmission number = e^rt, where r= growth rate and t=interval of time
+
+This is a more realistic model for a number of reasons,
+
+- It is difficult to determine the average time of infectiousness as it would vary widely depending on the individual, and therefore is too large of an assumption.
+
+- Additionally, the model in 8a does not give the growth rate over time rather growth rate over infectious period which is of little use.
+
+- The exponential model presented in class gives a more accurate and reliable prediction of the potential progress of the virus. Where if one individual infects 2 others those 2 individuals will infect two more and so forth which is more realistic as people tend to travel a lot.
 
 
 **9. Estimating R(0) and Change in R(0) due to intervention**
