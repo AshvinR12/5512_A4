@@ -309,9 +309,9 @@ initial_assumption_tidy_output <-
 #displaying the output of the data after tidying
 initial_assumption_tidy_output
 
-
 #displaying the output of the 2 dates of intervention after tidying
 initial_assumption_tidy_output[c(7,30),]
+
 ```
 
 
