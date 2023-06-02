@@ -5,12 +5,13 @@ author: Prepared by Givenname Familyname, student id, email address
 date: '`r Sys.Date()`'
 bibliography: [packages.bib,references.bib]
 nocite: |
-  @R-tidyverse,@R-bookdown,@R-lubridate,@R-ggplot2
+  @R-tidyverse,@R-bookdown,@R-lubridate,@R-ggplot2, @R-deSolve
 output: 
-  html_document:
-    css: monashreport.css
-    includes:
-      before_body: header.html
+  bookdown::html_document2:
+            css: monashreport.css
+            includes:
+                  before_body: header.html
+fig_caption: true
 ---
 
 ```{r setup, include=FALSE}
@@ -23,7 +24,7 @@ library(tidyverse)
 library(ggplot2)
 library(lubridate)
 library(bookdown)
-
+library(deSolve)
 
 ```
 
@@ -31,16 +32,16 @@ library(bookdown)
 
 ```{r}
 #load case data from the csv
-case_data <- read_csv(here::here("data/NCOV_cases_by_postcode_LGA.csv"))
+covid_case_data <- read_csv(here::here("data/NCOV_cases_by_postcode_LGA.csv"))
 ```
 
 ```{r}
 #filter the data for the investigation period
-data <- case_data %>% filter(diagnosis_date >= "2020-06-01",
+data <- covid_case_data %>% filter(diagnosis_date >= "2020-06-01",
                              diagnosis_date <= "2020-08-13") 
 ```
 
-#### 1. Where the Data was found
+**1. Where the Data was found**
 
 The data was sourced from the Victoria Health Coronavirus website, which stores the data of all the coronavirus cases throughout Victoria since 2020. They have data sets available for outsiders to download and analyze, as well as post updated information frequently.
 
@@ -48,15 +49,15 @@ Of the data sets available for download the data chosen for this analysis was Vi
 
 This data is protected by copyright under a Creative Commons Attribution Version 4.0, which is an international license. Therefore, when using this data we must be mindful of the restrictions laid out in the aforementioned license.
 
-#### 2. Observational or Experimental Data
+**2. Observational or Experimental Data**
 
 This is a observational data as the Victoria Health department specified that they gathered their data through contact tracing and management of the COVID-19 outbreak. This is indicative that researcher or health professionals do not control the factors affecting the variables, meaning that the variables themselves are independent, but rather they attempt to determine correlation of factors. In this scenario the independent variables are the coronavirus cases or people affected by the coronavirus.
 
-#### 4. Unit and potential Unique Identifier
+**4. Unit and potential Unique Identifier**
 
 In this data set the "postcode" can be considered a unique identifier as it can easily identify an individual especially when combined with the diagnosis date and case count.
 
-#### 5. Storing and Analysing the Data
+**5. Storing and Analysing the Data**
 
 The data set in its current form can be stored and used for analysis of the research question, however the only variables essential to this analysis is the date of diagnosis and the number of cases on those days. Therefore, to keep the report concise and accurate we will remove all columns except "diagnosis_date" as well as create a new column "total_cases" to give the total number of cases on a given day within the period of interest.
 
@@ -69,26 +70,42 @@ cleaned_data <- data %>%
 
 # 🔍 Analysis
 
-#### 6. Daily Cases over Time of Interest
+**6. Daily Cases over Time of Interest**
 
 
-```{r, fig.cap= "Time series of Covid cases from 30th June to the 13th of September 2020"}
+```{r timeseries, fig.cap = "Time series of Covid cases from 30th June to the 13th of September 2020", fig.align='center'}
+
+intervention_dates<- c("2020-06-30", "2020-07-23") #store intervention dates in a variable
+
+#do the following to highlight the intervention dates in plot
+cleaned_data$cases_by_date<- 
+  ifelse(cleaned_data$diagnosis_date == intervention_dates,
+         "date_of_intervention","other") 
+
+mycolour<- c("date_of_intervention" = "red", "other" = "grey")
+
+#plot on a graph  
 cleaned_data %>%
   ggplot(aes(x= diagnosis_date, y= total_cases))+
   geom_line()+
+  
+  #add code to highlight specific dates
+  geom_point(aes(colour = cases_by_date))+
+  
   labs(x= "Diagnosis date", y = "Number of cases")
 
 ```
 
 
+From this figure we see that the overall trend for the number of cases diagnosed with covid-19 is increasing from the 1st of June to the 13th of September. The 2 point highlighted in red represent the intervention dates in question, the "30th of June 2020" and the "23rd of July" respectively.
 
 
 
 
-#### 7. 7-Day Growth Rate
+**7. The 7-Day Growth Rate**
 
-```{r GR, fig.cap= "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020"}
-lockdown_period <- interval(ymd("20200630"), ymd("20200729"))
+```{r generate growth rate}
+lockdown_period <- interval(ymd("20200624"), ymd("20200729"))
 
 growth_rate <- data %>%
  filter(diagnosis_date %within% lockdown_period) %>% #limit it to the lock down period
@@ -104,40 +121,95 @@ growth_rate <- data %>%
  .after = 0
  )
  )
+```
+
+
+
+```{r growth, fig.cap = "Growth Rate of Covid cases within the lockdown period of 30th June to 29th July 2020", fig.align='center'}
+#do the same as in previous figure to highlight the intervention dates
+growth_rate$cases_by_date <- 
+  ifelse(growth_rate$diagnosis_date == intervention_dates,
+         "date_of_intervention","other") 
+
+mycolour<- c("date_of_intervention" = "red", "other" = "grey")
 
 ggplot(growth_rate,aes(diagnosis_date, growth_rate))+
-  geom_line()
+  geom_line()+
+  geom_point(aes(colour = cases_by_date))
 
 ```
 
 
-Since we are concerned with effects of local lockdowns, the above growth rate considers the lockdown duration within the investigation period. According to @guardian, the lockdown at that point in time was imposed from the 30th of June to the 29th of July 2020. What we notice from Figure \@ref{fig:GR} is that although there was an initial spike in the growth rate of cases, it subsided towards the end of the lockdown. This means the lockdown was relatively effective in this period.
+Since we are concerned with effects of local lockdowns, the above growth rate considers the lockdown duration within the investigation period. According to @guardian, the lockdown at that point in time was imposed from the 30th of June to the 29th of July 2020. The growth rate is calculated on a weekly basis, meaning that it is calculated using the number of cases 7 days prior to each given date. The two dates of intervention are highlighted in red.   
 
-#### 9. Estimating R(0) and Change in R(0) due to intervention
+The first thing to note from \@ref(fig:growth) is that the growth rate on the 30th of June displays the growth rate of covid cases for the week prior to the lockdown being imposed. This point can considered a reference point to understand the effectiveness of the lockdown. 
+
+We can understand that despite there being an initial spike in the growth rate of cases, it subsided towards the end of the lockdown. It can be seen that the growth rate on the second date of intervention, "23rd July", was lower compared to the previously calculated growth rate. Although not the lowest, the growth rate on the 23rd of July was one of the lowest calculated upto that point and is considerably lower than other dates throughout the lockdown period. This means the lockdown was relatively effective in this period.
+
+**8. Relationship between Growth Rate and Effective Transmission Rate**
+
+**9. Estimating R(0) and Change in R(0) due to intervention**
+
+a.
+
+Let us consider the SEIR model for coronavirus specifically. The abbreviation SEIR stands for:
+
+S - People that are Susceptible 
+
+E - People that are Exposed but not infectious
+
+I - People that are Infected and infectious
+
+R - People that have Recovered
+
+This model is used to calculate the number of people affected by covid in a given region or area. It helps determine and understand how contagious the virus is or can be overtime as well as the recovery rate and infectious periods, which then assist officials in making informed decisions to combat the virus, in this context covid-19.
+
+It is understood that *S+E+I+R=1*. This means that the summation of the number of people in these 4 categories make up the entire population of the specific region the SEIR model is being carried out in. It is make clear that all members of the population are considered or accounted for in the computation of this model. Additionally, it ensures that no individual is duplicated. For example, once a person recovers from the coronovirus, they are no longer accounted for in the *I-Infected and infectious* category or any of the other categories.
+
+b.
+
+Since we are interested in the R(0) of the intervention dates, the SEIR model will be calculated using the growth rate on those 2 particular dates. That is the growth rate on the 30th of June and on the 23rd of July 2020. From then on we can compute the effective transimission number and other required values.
+
+c.
 
 ```{r}
-solve_times <- seq(int_start(lockdown_period), 
+times <- seq(int_start(lockdown_period), 
                    int_end(lockdown_period), by = "1 day")
 parameters <- c(
  "beta" = 2 / 3,
  "sigma" = 1 / 5,
- "gamma" = 1 / 6 # Gives an R0 (beta/gamma) of 4
+ "gamma" = 1 / 3 # Gives an R0 (beta/gamma) of 2
 )
-N <- 6.681e6 #population in Victoria as at September 2020
+population_vic <- 6.681e6 #population in Victoria as at September 2020
+
+initial_infected <- 10
+initial_state <- c("S" = population_vic - initial_infected, 
+                   "E" = 0, 
+                   "I" = initial_infected, 
+                   "R" = 0, 
+                   "incidence" =0)
 
 ```
 
+```{r}
+COVID_cases_intdate <- function(t, state, parameters) {
+ with(as.list(c(state, parameters)), { # Let's us refer to named objects without square bracket
+ population_vic <- S + E + I + R 
+ dSdt <- -beta * S * I / population_vic
+ dEdt <- beta * S * I / population_vic - sigma * E
+ dIdt <- sigma * E - gamma * I
+ dRdt <- gamma * I
+ dIncidencedt <- sigma * E
+ return(list(
+ c(dSdt, dEdt, dIdt, dRdt, dIncidencedt) # The order is critical! It has to be the same ord
+ ))
+ })
+}
 
+```
 
-# Trial :
-```{r, echo=FALSE,include=FALSE}
-
-day <- seq(0, 3, by=0.01)
-prob_test_returned <- dlnorm(x=day, meanlog=0, sdlog=0.2)
-df <- data.frame(day, prob_test_returned)
-ggplot(df, aes(x=day, y=prob_test_returned)) + geom_line() + theme_bw() +
- labs(x="Time from test until notification", y="Density")
-
+```{r}
+citation("deSolve")
 ```
 
 
@@ -152,21 +224,5 @@ In this Covid-19 data set the variables consistently used were "diagnosed_date" 
 
 3. When writing dates it is 
 
-
-
-
-```{r}
-#areas affected by lockdowns from 30th June to 29th July
-#found in the guardian article
-#ld <- data%>% filter(postcode %in% c(3012,3021,
-                                            #3032,3038,
-                                            #3041,3046,
-                                            #3047,3055,
-                                            #3060,3064))%>%
-  #filter(diagnosis_date >= "2020-06-01",diagnosis_date <= "2020-08-13")
-
-
-
-```
 
 # Resources
